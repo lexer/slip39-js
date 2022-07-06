@@ -191,6 +191,10 @@ class Slip39 {
     return slipHelper.validateMnemonic(mnemonic);
   }
 
+  static setRng(fn) {
+    slipHelper.setRng(fn);
+  }
+
   fromPath(path) {
     this.validatePath(path);
     const children = this.parseChildren(path);
