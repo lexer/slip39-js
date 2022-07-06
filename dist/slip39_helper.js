@@ -66,14 +66,21 @@ var maybeJSBI = {
 const JSBI = require("../jsbi-cjs.js");
 
 /* eslint-disable no-array-constructor */
-let crypto;
+let rng = function(str) {
+  const validByteCount = Math.floor(str);
 
-try {
-  crypto = require('crypto');
-} catch (err) {
-  throw new Error('crypto support must be enabled');
-} // The length of the radix in bits.
-
+  // remote javascript debugging is enabled
+  const array = new Uint8Array(validByteCount);
+  for (let i = 0; i < validByteCount; i++) {
+      array[i] = Math.floor(Math.random() * 512);
+  }
+  return array;
+}
+function setRng(fn) {
+  rng = fn
+}
+const createHmac = require('create-hmac');
+const pbkdf2 = require('pbkdf2');
 
 const RADIX_BITS = 10; // The length of the random identifier in bits.
 
@@ -209,7 +216,7 @@ function bitsToWords(n) {
 
 
 function randomBytes(length = 32) {
-  let randoms = crypto.randomBytes(length);
+  let randoms = rng(length);
   return Array.prototype.slice.call(randoms, 0);
 } //
 // The round function used internally by the Feistel cipher.
@@ -220,7 +227,7 @@ function roundFunction(round, passphrase, exp, salt, secret) {
   const saltedSecret = salt.concat(secret);
   const roundedPhrase = [round].concat(passphrase);
   const count = (ITERATION_COUNT << exp) / ROUND_COUNT;
-  const key = crypto.pbkdf2Sync(Buffer.from(roundedPhrase), Buffer.from(saltedSecret), count, secret.length, 'sha256');
+  const key = pbkdf2.pbkdf2Sync(Buffer.from(roundedPhrase), Buffer.from(saltedSecret), count, secret.length, 'sha256');
   return Array.prototype.slice.call(key, 0);
 }
 
@@ -246,7 +253,7 @@ function crypt(masterSecret, passphrase, iterationExponent, identifier, encrypt 
 }
 
 function createDigest(randomData, sharedSecret) {
-  const hmac = crypto.createHmac('sha256', Buffer.from(randomData));
+  const hmac = createHmac('sha256', Buffer.from(randomData));
   hmac.update(Buffer.from(sharedSecret));
   let result = hmac.digest();
   result = result.slice(0, 4);
@@ -685,5 +692,6 @@ exports = module.exports = {
   combineMnemonics,
   crypt,
   bitsToBytes,
+  setRng,
   WORD_LIST
 };
